@@ -716,7 +716,7 @@ def main():
 
         def compute_loss(params):
             labels = batch.pop("labels")
-            logits = state.apply_fn(**batch, params=params, dropout_rng=dropout_rng, train=True)[0]
+            logits = state.apply_fn(**batch, params=params, dropout_rng=dropout_rng)[0]
             loss = loss_fn(logits, labels)
             return loss
 
@@ -734,7 +734,7 @@ def main():
     # Define eval fn
     def eval_step(params, batch):
         labels = batch.pop("labels")
-        logits = model(**batch, params=params, train=False)[0]
+        logits = model(**batch, params=params)[0]
         loss = loss_fn(logits, labels)
 
         # summarize metrics
