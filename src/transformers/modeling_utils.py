@@ -5645,22 +5645,21 @@ def unwrap_model(model: nn.Module, recursive: bool = False) -> nn.Module:
     """
     # Use accelerate implementation if available (should always be the case when using torch)
     # This is for pytorch, as we also have to handle things like dynamo
-    if is_accelerate_available():
-        kwargs = {}
-        if recursive:
-            if not is_accelerate_available("0.29.0"):
-                raise RuntimeError(
-                    "Setting `recursive=True` to `unwrap_model` requires `accelerate` v0.29.0. Please upgrade your version of accelerate"
-                )
-            else:
-                kwargs["recursive"] = recursive
-        return extract_model_from_parallel(model, **kwargs)
-    else:
-        # since there could be multiple levels of wrapping, unwrap recursively
-        if hasattr(model, "module"):
-            return unwrap_model(model.module)
+    def recursive_unwrap(module):
+        if hasattr(module, "module"):
+            unwrapped_module = recursive_unwrap(getattr(module, "module"))
         else:
-            return model
+            unwrapped_module = module  # Handle cases where wrapped module is inaccessible
+
+        # Unwrap child sublayers recursively
+        for name, child in module.named_children():
+            setattr(module, name, recursive_unwrap(child))
+
+        return unwrapped_module
+
+    # Start with top-level unwrapping
+    unwrapped_model = recursive_unwrap(model)
+    return unwrapped_model
 
 
 def expand_device_map(device_map, param_names, start_prefix):
