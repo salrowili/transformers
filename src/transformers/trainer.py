@@ -3765,13 +3765,21 @@ class Trainer:
         logger.info(f"Saving model checkpoint to {output_dir}")
         model = self.model
         xm.mark_step()
-
+        model.to("cpu")
         if xm.is_master_ordinal(local=False):
             os.makedirs(output_dir, exist_ok=True)
             torch.save(self.args, os.path.join(output_dir, TRAINING_ARGS_NAME))
 
         # Save a trained model and configuration using `save_pretrained()`.
         # They can then be reloaded using `from_pretrained()`
+        unwrap_model(model).save_pretrained(
+                    output_dir,
+                    is_main_process=self.args.should_save,
+                    state_dict=unwrap_model(model).state_dict(),
+                    save_function=xm.save,
+                    safe_serialization=self.args.save_safetensors,
+                )
+        return True
         supported_classes = (PushToHubMixin,)
         xm.rendezvous("saving_checkpoint")
         if self.is_fsdp_xla_v1_enabled:
